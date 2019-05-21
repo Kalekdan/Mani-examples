@@ -1,0 +1,20 @@
+/*
+Outputs whether the number provided is a prime number
+ */
+load "math";
+
+let numToCheck = 14;
+let isPrime = true;
+let max = numToCheck ** 0.5;
+
+for (let i = 2; i <= max; i++ ) {
+  if ((numToCheck / i) % 1 == 0){
+    isPrime = false;
+  }
+}
+
+if (isPrime){
+  say numToCheck + " is prime";
+} else {
+  say numToCheck + " is not prime";
+}
