@@ -1,0 +1,216 @@
+load "frame";
+load "arrays";
+load "maps";
+load "math";
+load "flatmap";
+load "threads";
+
+// PIPES CELL
+let CELL_START = 0;
+let HORIZONTAL = 0;
+let VERTICAL = 1;
+let LEFT_TO_DOWN = 2;
+let LEFT_TO_UP = 3;
+let RIGHT_TO_UP = 4;
+let RIGHT_TO_DOWN = 5;
+let CROSS = 6;
+let CELL_LAST = 6;
+
+let Cells = [
+    {"support": [1, 1, 0, 0], "index" : HORIZONTAL, "next" : VERTICAL},
+    {"support": [0, 0, 1, 1], "index": VERTICAL, "next": HORIZONTAL},
+    {"support": [1, 0, 0, 1], "index": LEFT_TO_DOWN, "next": LEFT_TO_UP},
+    {"support": [1, 0, 1, 0], "index": LEFT_TO_UP, "next": RIGHT_TO_UP},
+    {"support": [0, 1, 1, 0], "index": RIGHT_TO_UP, "next": RIGHT_TO_DOWN},
+    {"support": [0, 1, 0, 1], "index": RIGHT_TO_DOWN, "next": LEFT_TO_DOWN},
+    {"support": [1, 1, 1, 1], "index": CROSS, "next": CROSS}
+];
+
+let translateX = 0;
+let translateY = 0;
+
+let curX = 0;
+let curY = 0;
+
+
+
+fn draw(v, cellSize) {
+    let c2 = cellSize / 2;
+
+    if (v == HORIZONTAL) {
+        fillRect(0, c2 - 2, cellSize, 4);
+    } else if (v == VERTICAL) {
+        fillRect(c2 - 2, 0, 4, cellSize);
+    } else if (v == LEFT_TO_DOWN) {
+        fillRect(0, c2 - 2, c2, 4);
+        fillRect(c2 - 2, c2 - 2, 4, c2 + 2);
+    } else if (v == LEFT_TO_UP) {
+        fillRect(0, c2 - 2, c2, 4);
+        fillRect(c2 - 2, 0, 4, c2 + 2);
+    } else if (v == RIGHT_TO_UP) {
+        fillRect(c2 - 2, c2 - 2, c2 + 2, 4);
+        fillRect(c2 - 2, 0, 4, c2 + 2);
+    } else if (v == RIGHT_TO_DOWN) {
+        fillRect(c2 - 2, c2 - 2, c2 + 2, 4);
+        fillRect(c2 - 2, c2 - 2, 4, c2 + 2);
+    } else if (v == CROSS) {
+        fillRect(c2 - 2, 0, 4, cellSize);
+        fillRect(0, c2 - 2, cellSize, 4);
+    }
+}
+
+fn supportLeft(v) {
+    return Cells.at(v).at("support").at(0);
+}
+
+fn supportRight(v) {
+    return Cells.at(v).at("support").at(1);
+}
+
+fn supportUp(v) {
+    return Cells.at(v).at("support").at(2);
+}
+
+fn supportDown(v) {
+    return Cells.at(v).at("support").at(3);
+}
+
+
+// PIPES BOARD
+
+let SIZE = 10;
+
+let board = flatMap(SIZE, SIZE);
+
+fn createBoard() {
+    for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+            board.put(i, j, rand(CELL_LAST));
+        }
+    }
+}
+
+fn switchCell(x, y) {
+    board.put(x, y, Cells.at(board.at(x, y)).at("next"));
+}
+
+fn isFinished() {
+    // Start pipe must have left touchpoint
+    if (!supportLeft(board.at(0, 0))) {
+        return false;
+    }
+
+    if (!supportRight(board.at(SIZE - 1, SIZE - 1))) {
+        return false;
+    }
+
+    let visited = flatMap(SIZE, SIZE);
+
+    return isConnected(0, 0, visited);
+}
+
+fn isConnected(curX, curY, visited) {
+    if ( (curX == SIZE - 1) and (curY == SIZE - 1) ) {
+        return true;
+    }
+
+    if (visited.at(curX, curY)) {
+        return false;
+    }
+
+    visited.put(curX, curY, 1);
+
+    let current = board.at(curX, curY);
+
+    if ( supportLeft(current) and (curX > 0) and (supportRight(board.at(curX - 1, curY))) ) {
+        if (isConnected(curX - 1, curY, visited)) {
+            return true;
+        }
+    }
+
+    if ( supportRight(current) and (curX < SIZE - 1) and (supportLeft(board.at(curX + 1, curY))) ) {
+        if (isConnected(curX + 1, curY, visited)) {
+            return true;
+        }
+    }
+    if ( supportUp(current) and (curY > 0) and (supportDown(board.at(curX, curY - 1))) ) {
+        if (isConnected(curX, curY - 1, visited)) {
+            return true;
+        }
+    }
+    if ( supportDown(current) and (curY < SIZE - 1) and (supportUp(board.at(curX, curY + 1))) ) {
+        if (isConnected(curX, curY + 1, visited)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+// PIPES MAIN
+
+/* frect with translate ability */
+fn fillRect(x, y, w, h) {
+    frect(translateX + x, translateY + y, w, h);
+}
+
+let WIDTH = 480;
+let HEIGHT = 480;
+
+let frame = window("Pipes", WIDTH, HEIGHT);
+let cellSize = WIDTH / SIZE;
+createBoard();
+
+
+let run = 1;
+
+
+while (run) {
+    let key = keyPressed();
+    if (key == KEY_LEFT and curX > 0) {
+        curX--;
+    } else if (key == KEY_RIGHT and curX < SIZE - 1) {
+        curX++;
+    } else if (key == KEY_UP and curY > 0) {
+        curY--;
+    } else if (key == KEY_DOWN and curY < SIZE - 1) {
+        curY++;
+    } else if (key == KEY_FIRE) {
+        switchCell(curX, curY);
+    } else if (key == KEY_ESCAPE) {
+        run = 0;
+    }
+
+    // background
+
+    if (isFinished()) {
+        color(0, 255, 0);
+    } else {
+        color(255, 255, 255);
+    }
+
+    frect(0, 0, WIDTH, HEIGHT);
+
+    // cursor
+    color(27, 27, 255);
+    frect( curX * cellSize, curY * cellSize, cellSize, cellSize );
+
+    for (let i = 0; i < SIZE; i++) {
+        color(0);
+        let ic = i * cellSize;
+        line(0, ic, cellSize * SIZE, ic);
+        line(ic , 0, ic, cellSize * SIZE);
+        color(255, 0, 0);
+
+        for (let j = 0; j < SIZE; j++) {
+            translateX = ic;
+            translateY = j * cellSize;
+            draw(board.at(i, j), cellSize);
+            translateX = ic - 1;
+            translateY = (j - 1) * cellSize;
+        }
+    }
+
+    windowRepaint();
+    sleep(40);
+}
