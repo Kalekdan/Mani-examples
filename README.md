@@ -1,2 +1,2 @@
-# Mani-examples
-A set of example programs written in [Mani](https://github.com/crazywolf132/Mani)
+# Máni-examples
+A set of example programs written in [Máni](https://github.com/mani-language/Mani)
